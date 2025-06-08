@@ -1,0 +1,119 @@
+version: '3.8'
+
+# Definición de volúmenes para persistencia de datos
+volumes:
+  db_storage:
+  n8n_storage:
+
+services:
+  # Servicio de PostgreSQL para n8n
+  postgres:
+    image: postgres:16 # Utiliza una versión específica de PostgreSQL
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: any
+    environment:
+      # Las variables POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB son las que usa la imagen de postgres
+      # para configurar el acceso inicial. Estas se mapean desde los secrets como si fueran environment
+      # variables para que el entrypoint de PostgreSQL las lea al iniciar.
+      - POSTGRES_USER_FILE=/run/secrets/postgres_user_n8n_secret # <--- ¡CAMBIO CLAVE AQUÍ!
+      - POSTGRES_PASSWORD_FILE=/run/secrets/postgres_password_n8n_secret # <--- ¡CAMBIO CLAVE AQUÍ!
+      - POSTGRES_DB=n8n
+      # Las siguientes son para el usuario no-root que n8n usará, y serán manejadas por secrets en n8n.
+      # Se pasan aquí para que el script `init-data.sh` pueda leerlas y crear el usuario.
+      # Asegúrate que los valores de los secrets (que pusiste al crearlos en el VPS) coincidan
+      # con lo que el init-data.sh espera.
+      - POSTGRES_NON_ROOT_USER_FOR_INITDB_FILE=/run/secrets/postgres_non_root_user_n8n_secret # <--- ¡CAMBIO CLAVE AQUÍ!
+      - POSTGRES_NON_ROOT_PASSWORD_FOR_INITDB_FILE=/run/secrets/postgres_non_root_password_n8n_secret # <--- ¡CAMBIO CLAVE AQUÍ!
+
+    volumes:
+      - db_storage:/var/lib/postgresql/data # Persistencia de los datos de la DB
+      # El script init-data.sh se ejecutará la primera vez que el contenedor de PostgreSQL se inicialice
+      - ./init-data.sh:/docker-entrypoint-initdb.d/init-data.sh 
+    healthcheck: # Ayuda a Docker Swarm a saber cuándo la DB está lista
+      # El healthcheck usa el usuario por defecto (admin) que se configurará.
+      # Usamos el secret directamente para el usuario para la verificación.
+      test: ['CMD-SHELL', 'pg_isready -h localhost -U $(cat /run/secrets/postgres_user_n8n_secret) -d n8n'] # <--- ¡CAMBIO AQUÍ! Lee el usuario del secret
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - caddy # La misma red 'caddy' que usas para el frontend para que n8n y Caddy se comuniquen
+    secrets: # <--- ¡IMPORTANTE! Se declaran los secrets que este servicio puede acceder.
+      - postgres_user_n8n_secret
+      - postgres_password_n8n_secret
+      - postgres_non_root_user_n8n_secret
+      - postgres_non_root_password_n8n_secret
+
+  # Servicio de n8n
+  n8n:
+    image: n8nio/n8n # Imagen oficial de n8n
+    deploy:
+      labels:
+        caddy: "n8n.saguarodrap.dev" # Tu subdominio para n8n
+        caddy.reverse_proxy: "{{upstreams 5678}}" # n8n corre por defecto en el puerto 5678
+        caddy.tls: "davidake117@gmail.com" # Tu email para certificados SSL/TLS
+      replicas: 1
+      restart_policy:
+        condition: any
+    environment:
+      # Configuración de n8n para usar PostgreSQL
+      - DB_TYPE=postgresdb
+      - DB_POSTGRESDB_HOST=postgres # Nombre del servicio de PostgreSQL dentro de este mismo stack
+      - DB_POSTGRESDB_PORT=5432
+      - DB_POSTGRESDB_DATABASE=n8n
+      # n8n leerá estas credenciales de los archivos de secrets
+      - DB_POSTGRESDB_USER_FILE=/run/secrets/postgres_non_root_user_n8n_secret # <--- Apunta al archivo del secret en el contenedor
+      - DB_POSTGRESDB_PASSWORD_FILE=/run/secrets/postgres_non_root_password_n8n_secret # <--- Apunta al archivo del secret en el contenedor
+
+      # Configuración de URL base para n8n (crucial para webhooks y links en la interfaz)
+      - N8N_HOST=n8n.saguarodrap.dev
+      - N8N_PORT=5678 # Puerto interno de n8n
+      - N8N_PROTOCOL=https
+      - WEBHOOK_URL=https://n8n.saguarodrap.dev
+      
+      - NODE_ENV=production # Modo de producción para n8n
+
+      # Configuración de seguridad para n8n (¡Ahora usando Docker Secrets!)
+      - N8N_BASIC_AUTH_ACTIVE=true # Activa la autenticación básica
+      - N8N_BASIC_AUTH_USER_FILE=/run/secrets/n8n_basic_auth_user # <--- Apunta al archivo del secret
+      - N8N_BASIC_AUTH_PASSWORD_FILE=/run/secrets/n8n_basic_auth_password # <--- Apunta al archivo del secret
+
+      # Clave de encriptación para credenciales de n8n (¡CRÍTICO! Genera una y guárdala en un secret)
+      - N8N_ENCRYPTION_KEY_FILE=/run/secrets/n8n_encryption_key # <--- Apunta al archivo del secret
+
+    volumes:
+      - n8n_storage:/home/node/.n8n # Persistencia de datos de n8n (workflows, credenciales, etc.)
+    networks:
+      - caddy # n8n necesita estar en la red de Caddy para que Caddy pueda hacer proxy a él
+    secrets: # <--- ¡IMPORTANTE! Se declaran los secrets que este servicio necesita.
+      - postgres_non_root_user_n8n_secret
+      - postgres_non_root_password_n8n_secret
+      - n8n_encryption_key
+      - n8n_basic_auth_user
+      - n8n_basic_auth_password
+
+# Declaración de los secrets a nivel de stack
+# Indica que estos secrets ya existen externamente en tu Docker Swarm
+secrets: # <--- ¡CAMBIO CLAVE AQUÍ! Nueva sección para declarar los secrets externos.
+  postgres_user_n8n_secret:
+    external: true
+  postgres_password_n8n_secret:
+    external: true
+  postgres_non_root_user_n8n_secret:
+    external: true
+  postgres_non_root_password_n8n_secret:
+    external: true
+  n8n_encryption_key:
+    external: true
+  n8n_basic_auth_user:
+    external: true
+  n8n_basic_auth_password:
+    external: true
+
+# Definición de la red externa de Caddy
+networks:
+  caddy:
+    driver: overlay
+    external: true # Indica que esta red ya existe (creada por tu stack de Caddy)

@@ -1,0 +1,60 @@
+name: Deploy n8n Service
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Install SSH Key
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+
+      - name: Add VPS to known_hosts
+        run: |
+          mkdir -p ~/.ssh
+          ssh-keyscan -H ${{ secrets.VPS_HOST }} >> ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+
+      - name: Copy n8n-stack.yml and init-data.sh to VPS
+        uses: appleboy/scp-action@v0.1.6
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          source: ".deploy/n8n-stack.yml,.deploy/init-data.sh"
+          target: "/home/${{ secrets.VPS_USER }}/workspace/n8n-deploy/"
+
+      - name: Deploy n8n to VPS
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            cd /home/${{ secrets.VPS_USER }}/workspace/n8n-deploy
+
+            echo ">>> Pulling latest n8n and PostgreSQL Docker images..."
+            docker pull n8nio/n8n:latest
+            docker pull postgres:16
+            
+            echo ">>> Deploying n8n Docker stack..."
+            docker stack deploy -c n8n-stack.yml n8n-app
+            
+            echo ">>> Waiting for n8n service to stabilize (30 seconds)..."
+            sleep 30
+
+            echo ">>> Pruning stopped containers..."
+            sudo docker container prune -f
+
+            echo ">>> Pruning unused images..."
+            sudo docker image prune -f
+
+            echo ">>> Docker system cleanup completed."
