@@ -5,7 +5,6 @@ volumes:
   n8n_storage:
 
 services:
- 
   postgres:
     image: postgres:16
     deploy:
@@ -13,90 +12,49 @@ services:
       restart_policy:
         condition: any
     environment:
-     
-      - POSTGRES_USER_FILE=/run/secrets/postgres_user_n8n_secret
-      - POSTGRES_PASSWORD_FILE=/run/secrets/postgres_password_n8n_secret
+      - POSTGRES_USER=default_user
+      - POSTGRES_PASSWORD=default_pass123
       - POSTGRES_DB=n8n
-      - POSTGRES_NON_ROOT_USER_FOR_INITDB_FILE=/run/secrets/postgres_non_root_user_n8n_secret
-      - POSTGRES_NON_ROOT_PASSWORD_FOR_INITDB_FILE=/run/secrets/postgres_non_root_password_n8n_secret
-
+      - POSTGRES_NON_ROOT_USER=default_user
+      - POSTGRES_NON_ROOT_PASSWORD=default_pass123
     volumes:
       - db_storage:/var/lib/postgresql/data
-    
-      - ./init-data.sh:/docker-entrypoint-initdb.d/init-data.sh 
+      - ./init-data.sh:/docker-entrypoint-initdb.d/init-data.sh
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -h localhost -U $(cat /run/secrets/postgres_user_n8n_secret) -d n8n']
+      test: ['CMD-SHELL', 'pg_isready -h localhost -U default_user -d n8n']
       interval: 5s
       timeout: 5s
       retries: 10
     networks:
-      - caddy 
-    secrets:
-      - postgres_user_n8n_secret
-      - postgres_password_n8n_secret
-      - postgres_non_root_user_n8n_secret
-      - postgres_non_root_password_n8n_secret
+      - caddy
 
   n8n:
-    image: n8nio/n8n
+    image: docker.n8n.io/n8nio/n8n
     deploy:
       labels:
-        caddy: "n8n.saguarodrap.dev"
-        caddy.reverse_proxy: "{{upstreams 5678}}"
-        caddy.tls: "davidake117@gmail.com"
+        caddy_0: "n8n.saguarodrap.dev"
+        caddy_0.reverse_proxy: "{{upstreams 5678}}"
+        caddy_0.tls: "davidake117@gmail.com"
+        caddy_0.tls.on_demand:
       replicas: 1
       restart_policy:
         condition: any
     environment:
-    
       - DB_TYPE=postgresdb
       - DB_POSTGRESDB_HOST=postgres
       - DB_POSTGRESDB_PORT=5432
       - DB_POSTGRESDB_DATABASE=n8n
-      - DB_POSTGRESDB_USER_FILE=/run/secrets/postgres_non_root_user_n8n_secret
-      - DB_POSTGRESDB_PASSWORD_FILE=/run/secrets/postgres_non_root_password_n8n_secret
-
-      - N8N_HOST=n8n.saguarodrap.dev
+      - DB_POSTGRESDB_USER=default_user
+      - DB_POSTGRESDB_PASSWORD=default_pass123
+      - N8N_HOST=n8n.saguarodrap.dev/
       - N8N_PORT=5678
       - N8N_PROTOCOL=https
-      - WEBHOOK_URL=https://n8n.saguarodrap.dev
-      
       - NODE_ENV=production
-
-      - N8N_BASIC_AUTH_ACTIVE=true
-      - N8N_BASIC_AUTH_USER_FILE=/run/secrets/n8n_basic_auth_user
-      - N8N_BASIC_AUTH_PASSWORD_FILE=/run/secrets/n8n_basic_auth_password
-
-      - N8N_ENCRYPTION_KEY_FILE=/run/secrets/n8n_encryption_key
-
+      - WEBHOOK_URL=https://n8n.saguarodrap.dev
     volumes:
       - n8n_storage:/home/node/.n8n
     networks:
       - caddy
-    secrets:
-      - postgres_non_root_user_n8n_secret
-      - postgres_non_root_password_n8n_secret
-      - n8n_encryption_key
-      - n8n_basic_auth_user
-      - n8n_basic_auth_password
-
-
-secrets:
-  postgres_user_n8n_secret:
-    external: true
-  postgres_password_n8n_secret:
-    external: true
-  postgres_non_root_user_n8n_secret:
-    external: true
-  postgres_non_root_password_n8n_secret:
-    external: true
-  n8n_encryption_key:
-    external: true
-  n8n_basic_auth_user:
-    external: true
-  n8n_basic_auth_password:
-    external: true
-
 networks:
   caddy:
     driver: overlay
