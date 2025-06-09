@@ -46,7 +46,7 @@ services:
       - DB_POSTGRESDB_DATABASE=n8n
       - DB_POSTGRESDB_USER=default_user
       - DB_POSTGRESDB_PASSWORD=default_pass123
-      - N8N_HOST=n8n.saguarodrap.dev/
+      - N8N_HOST=n8n.saguarodrap.dev
       - N8N_PORT=5678
       - N8N_PROTOCOL=https
       - NODE_ENV=production
