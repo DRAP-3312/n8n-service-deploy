@@ -43,6 +43,9 @@ jobs:
             # Nos movemos al directorio donde se copiaron los archivos
             cd /home/${{ secrets.VPS_USER }}/workspace/n8n-deploy
 
+            echo ">>> Verificando archivos..."
+            ls -la
+
             echo ">>> Pulling latest n8n and PostgreSQL Docker images..."
             docker pull n8nio/n8n:latest
             docker pull postgres:16
@@ -51,7 +54,7 @@ jobs:
             docker network create --driver overlay caddy || true
             
             echo ">>> Deploying n8n Docker stack..."
-            docker stack deploy -c n8n-stack.yml n8n-app
+            docker stack deploy -c n8n-service-deploy/.deploy/n8n-stack.yml n8n-app
             
             echo ">>> Waiting for services to stabilize (60 seconds)..."
             sleep 60
@@ -60,6 +63,10 @@ jobs:
             docker service ls
             docker service ps n8n-app_n8n
             docker service ps n8n-app_postgres
+
+            echo ">>> Checking logs..."
+            docker service logs n8n-app_n8n
+            docker service logs n8n-app_postgres
 
             echo ">>> Pruning stopped containers..."
             docker container prune -f
