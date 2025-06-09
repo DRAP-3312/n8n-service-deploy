@@ -30,7 +30,7 @@ jobs:
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           source: ".deploy/n8n-stack.yml,.deploy/init-data.sh"
-          target: "/home/${{ secrets.VPS_USER }}/workspace/n8n-deploy" 
+          target: "/home/${{ secrets.VPS_USER }}/workspace/n8n-deploy/n8n-service-deploy" 
           overwrite: true
 
       - name: Deploy n8n to VPS
