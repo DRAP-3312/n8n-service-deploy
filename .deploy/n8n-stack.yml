@@ -55,6 +55,10 @@ services:
       - n8n_storage:/home/node/.n8n
     networks:
       - caddy
+    depends_on:
+      postgres:
+        condition: service_healthy
+
 networks:
   caddy:
     driver: overlay
