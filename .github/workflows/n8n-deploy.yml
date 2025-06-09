@@ -30,7 +30,8 @@ jobs:
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           source: ".deploy/n8n-stack.yml,.deploy/init-data.sh"
-          target: "/home/${{ secrets.VPS_USER }}/workspace/n8n-deploy/"
+          target: "/home/${{ secrets.VPS_USER }}/workspace/n8n-deploy" 
+          overwrite: true
 
       - name: Deploy n8n to VPS
         uses: appleboy/ssh-action@v1.0.0
@@ -39,6 +40,7 @@ jobs:
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
+            # Nos movemos al directorio donde se copiaron los archivos
             cd /home/${{ secrets.VPS_USER }}/workspace/n8n-deploy
 
             echo ">>> Pulling latest n8n and PostgreSQL Docker images..."
@@ -52,9 +54,9 @@ jobs:
             sleep 30
 
             echo ">>> Pruning stopped containers..."
-            sudo docker container prune -f
+            docker container prune -f
 
             echo ">>> Pruning unused images..."
-            sudo docker image prune -f
+            docker image prune -f
 
             echo ">>> Docker system cleanup completed."
