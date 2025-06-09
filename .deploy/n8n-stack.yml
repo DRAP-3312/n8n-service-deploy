@@ -56,8 +56,7 @@ services:
     networks:
       - caddy
     depends_on:
-      postgres:
-        condition: service_healthy
+      - postgres
 
 networks:
   caddy:
