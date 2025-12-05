@@ -70,18 +70,14 @@ jobs:
             
             echo ">>> Deploying n8n Docker stack..."
             docker stack deploy -c n8n-service-deploy/.deploy/n8n-stack.yml n8n-app
-            
-            echo ">>> Waiting for services to stabilize (60 seconds)..."
-            sleep 60
+
+            echo ">>> Waiting for services to stabilize (30 seconds)..."
+            sleep 30
 
             echo ">>> Checking service status..."
             docker service ls
-            docker service ps n8n-app_n8n
-            docker service ps n8n-app_postgres
-
-            echo ">>> Checking logs..."
-            docker service logs n8n-app_n8n
-            docker service logs n8n-app_postgres
+            docker service ps n8n-app_n8n --no-trunc
+            docker service ps n8n-app_postgres --no-trunc
 
             echo ">>> Pruning stopped containers..."
             docker container prune -f
