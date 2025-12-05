@@ -29,7 +29,7 @@ services:
       - caddy
 
   n8n:
-    image: docker.n8n.io/n8nio/n8n
+    image: docker.n8n.io/n8nio/n8n:1.122.5
     deploy:
       labels:
         caddy_0: "n8n.saguarodrap.dev"

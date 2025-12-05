@@ -55,8 +55,14 @@ jobs:
             echo ">>> Verificando archivos..."
             ls -la
 
+            echo ">>> Creating backup of n8n data..."
+            docker run --rm -v n8n-app_n8n_storage:/data -v /home/${{ secrets.VPS_USER }}/n8n-backups:/backup alpine sh -c "cd /data && tar czf /backup/n8n_backup_$(date +%Y%m%d_%H%M%S).tar.gz ." || echo "Backup failed but continuing..."
+
+            echo ">>> Keeping only last 5 backups..."
+            ls -t /home/${{ secrets.VPS_USER }}/n8n-backups/n8n_backup_*.tar.gz 2>/dev/null | tail -n +6 | xargs -r rm || true
+
             echo ">>> Pulling latest n8n and PostgreSQL Docker images..."
-            docker pull n8nio/n8n:latest
+            docker pull docker.n8n.io/n8nio/n8n:1.122.5
             docker pull postgres:16
             
             echo ">>> Ensuring Caddy network exists..."
