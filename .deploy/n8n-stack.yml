@@ -32,7 +32,7 @@ services:
     image: docker.n8n.io/n8nio/n8n:1.122.5
     deploy:
       labels:
-        caddy_0: "n8n.saguarodrap.dev"
+        caddy_0: "n8n.yukiwow.com"
         caddy_0.reverse_proxy: "{{upstreams 5678}}"
         caddy_0.tls: "davidake117@gmail.com"
         caddy_0.tls.on_demand:
@@ -46,11 +46,11 @@ services:
       - DB_POSTGRESDB_DATABASE=n8n
       - DB_POSTGRESDB_USER=default_user
       - DB_POSTGRESDB_PASSWORD=default_pass123
-      - N8N_HOST=n8n.saguarodrap.dev
+      - N8N_HOST=n8n.yukiwow.com
       - N8N_PORT=5678
       - N8N_PROTOCOL=https
       - NODE_ENV=production
-      - WEBHOOK_URL=https://n8n.saguarodrap.dev
+      - WEBHOOK_URL=https://n8n.yukiwow.com
     volumes:
       - n8n_storage:/home/node/.n8n
     networks:
